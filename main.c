@@ -1,385 +1,418 @@
 #include <stdio.h>
 #include <string.h>
 #define MAX_DIGITS 310
-typedef enum { FALSE, TRUE } boolean;
-typedef enum { POSITIVE, NEGATIVE, ZERO } sign;
 
-typedef struct BigInt 
+typedef enum
 {
-    char integerArr[MAX_DIGITS];
-    int digits;// to store the number of digits
-}BigInt;
+    FALSE,
+    TRUE
+} boolean;
+
+typedef enum
+{
+    POSITIVE,
+    NEGATIVE,
+    ZERO
+} sign;
+
+typedef struct BigInt
+{
+    char integerArr[MAX_DIGITS + 1];
+    int digits; // to store the number of digits
+    sign s;
+} BigInt;
 
 void Initialize(BigInt *num)
 {
-    for (int i = 0; i < MAX_DIGITS; i++) 
+    for (int i = 0; i < MAX_DIGITS; i++)
         num->integerArr[i] = '0'; // Initialize all digits to '0'
-    
-    num->digits = 0; // number of digits = 0
-}
-int isDigit(char s)
-{
-    int ret_val = 1;
-    if(s<48 || s>57)
-    {
-        ret_val = 0;
-    }
-    return ret_val;
+
+    num->integerArr[MAX_DIGITS] = '\0'; // Null-terminate the string for safety
+    num->digits = 0;   // number of digits = 0
+    num-> s = ZERO;                
 }
 
-int setValue(BigInt *num, char *n , sign *s) 
+boolean isDigit(char num)
+{
+    return (num >= '0' && num <= '9');
+}
+
+boolean setValue(char *n, BigInt *num)
 {
     Initialize(num);
     int len = strlen(n);
     int i = 0, j;
-    int ret_val = 1;
-    if (len > MAX_DIGITS) 
+    boolean isNumber = TRUE;
+    if (len > MAX_DIGITS)
+    {
+        isNumber = FALSE; // if the length of the number exceeds MAX_DIGITS
         printf("Error: Number exceeds maximum digits (%d).\n", MAX_DIGITS);
-    
+        printf("Please enter a number with up to %d digits.\n", MAX_DIGITS);
+    }
     else
     {
-        if (strcmp(n, "0") == 0) // if the input string n = "0"
-        { 
-            num->digits = 1; 
-            *s = ZERO;
+        if (n[0] == '0') // if the input string n = "0"
+        {
+            num->digits = 1;
+            num->s = ZERO;
         }
         else
         {
-            if(n[0] == '-') // checking if the number is negative
-            { 
-                i = 1;  // Skip the negative sign
-                *s = NEGATIVE;
-                num->digits = len - 1;  // excluding the "-" sign
-            } 
-            else // integer is positive
-            { 
-                num->digits = len;
-                *s = POSITIVE;
-            }
-            for (j = MAX_DIGITS - num->digits; i < len && ret_val == 1; i++, j++) 
+            if (n[0] == '-') // checking if the number is negative
             {
-                if(isDigit(n[i]))
-                    num->integerArr[j] = n[i];  // setting digits in the integer array
+                i = 1; // Skip the negative sign to process digits
+                num->s = NEGATIVE;
+            }
+            else // integer is positive
+                num->s = POSITIVE;
+
+            num->digits = len - i; // excluding the "-" sign
+            for (j = MAX_DIGITS - (num->digits); (i < len) && (isNumber); i++, j++)
+            {
+                if (isDigit(n[i]))
+                    num->integerArr[j] = n[i]; // setting digits in the array
 
                 else
-                {
-                    ret_val = 0;
-                }
+                    isNumber = FALSE; // breaks the loop if a non-digit character is found
             }
-            
         }
+        num->integerArr[MAX_DIGITS] = '\0'; // Null-terminate the string for safety
     }
-    return ret_val;
+    return isNumber;
 }
 
-void printResult(sign s, BigInt num) 
+void printNumber(BigInt num)
 {
     int start = MAX_DIGITS - num.digits; // Starting position based on the known length
-    printf("\nThe result is : ");
-    if (s == ZERO) // Handle the special case for zero
+    if (num.s == ZERO)                   // Handle the special case for zero
         printf("0\n");
 
-    else if(s == NEGATIVE)
-    {
-        printf("-");
-    }
     else
     {
-        for (int i = start; i < MAX_DIGITS; i++) 
+        if (num.s == NEGATIVE)
+            printf("-");
+
+        for (int i = start; i < MAX_DIGITS; i++)
             putchar(num.integerArr[i]);
-        
         printf("\n");
     }
 }
 
-int findMaxLen(BigInt num1 , BigInt num2)
+int toInt(char ch)
+{
+    return ch - '0'; // Convert character to integer
+}
+
+char toChar(int num)
+{
+    return num + '0'; // Convert integer to character
+}
+
+int findMaxLen(BigInt num1, BigInt num2)
 {
     int retVal;
-    if(num1.digits > num2.digits)
+    if (num1.digits > num2.digits)
         retVal = num1.digits;
     else
         retVal = num2.digits;
     return retVal;
 }
 
-BigInt Addition(BigInt num1, BigInt num2) 
-{  
-    BigInt result;
-    Initialize(&result); 
-    int carry = 0, sum, i, maxLen;
-    maxLen = findMaxLen(num1, num2);
-    result.digits = maxLen; 
-    for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - maxLen; i--) 
-    {
-        sum = (num1.integerArr[i] - '0') + (num2.integerArr[i] - '0') + carry;
-        result.integerArr[i] = (sum % 10) + '0';
-        carry = sum / 10;
-    }
-    if (carry > 0) 
-    {
-        if (i >= 0) 
-        {
-            result.integerArr[i] = carry + '0'; // Place the carry
-            result.digits = result.digits + 1;  // Increment the digit count
-        } 
-        else 
-            printf("Overflow occurred\n");
-        
-    }
-    return result;
-}
-
-BigInt Multiplication(BigInt num1, BigInt num2 , sign s1 , sign s2 , sign *s) 
+BigInt Addition(BigInt num1, BigInt num2)
 {
     BigInt result;
     Initialize(&result);
-    if(s1 == ZERO || s2 == ZERO)
+    if (num1.s == ZERO && num2.s == ZERO)
     {
         result.integerArr[MAX_DIGITS - 1] = '0';
-        result.digits = 1; // Result is "0", so size is 1'
-        *s = ZERO;
-        return result;
+        result.digits = 1; // Result is "0", so size is 1
+        result.s = ZERO;
     }
-    if(s1 == s2)
-        *s = POSITIVE;
-    
     else
-        *s = NEGATIVE;
-
-    int len1 = num1.digits;
-    int len2 = num2.digits;
-    int i, j, product, carry,curr;
-    int startPos = MAX_DIGITS; // Track the highest non-zero position for `result.digits`
-    for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - len2; i--) 
     {
-        carry = 0;
-        for (j = MAX_DIGITS - 1; j >= MAX_DIGITS - len1; j--) 
+        if (num1.s == POSITIVE)
+            result.s = POSITIVE; // If both numbers are positive, result is positive
+        else
+            result.s = NEGATIVE; // If both numbers are negative, result is negative
+
+        int carry = 0, sum, i, maxLen;
+        maxLen = findMaxLen(num1, num2);
+        result.digits = maxLen;
+        for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - maxLen; i--)
         {
-            curr = i + j - (MAX_DIGITS - 1);
-            if (curr < 0) 
-            {
-                printf("Overflow occurred in Multiplication\n");
-                return result;
-            }
-            product = (num2.integerArr[i] - '0') * (num1.integerArr[j] - '0') + (result.integerArr[curr] - '0') + carry;
-            result.integerArr[curr] = (product % 10) + '0';
-            carry = product / 10;
-            // Update the highest non-zero position
-            if (product > 0 && curr < startPos) 
-                startPos = curr;
-            
+            sum = toInt(num1.integerArr[i]) + toInt(num2.integerArr[i]) + carry;
+            result.integerArr[i] = toChar(sum % 10);
+            carry = sum / 10;
         }
-        if (carry > 0) 
+        if (carry > 0)
         {
-            int pos = i + j - (MAX_DIGITS - 1);
-            if (pos >= 0) 
+            if (MAX_DIGITS - result.digits - 1 >= 0) // check if space exists for carry
             {
-                result.integerArr[pos] += carry;// Update the highest non-zero position for carry
-                if (result.integerArr[pos] > '0' && pos < startPos) 
-                    startPos = pos;
-            
+                result.integerArr[MAX_DIGITS - result.digits - 1] = toChar(carry);
+                result.digits++;
             }
-            else 
+            else
             {
-                printf("Overflow occurred in Multiplication\n");
-                return result;
+                printf("Overflow occurred (Printing result with maximum possible digits)\n");
+                result.digits = MAX_DIGITS; // Set to max digits to indicate overflow
             }
         }
     }
-    result.digits = MAX_DIGITS - startPos;//calculating the result size
     return result;
 }
 
-sign SubtractionSign(BigInt num1, BigInt num2 , sign s1 , sign s2) 
+// helper function to determine the sign of the subtraction based on the two numbers
+sign SubtractionSign(BigInt num1, BigInt num2)
 {
     int len1 = num1.digits;
-    int len2 = num2.digits;   
-    if (len1 > len2) 
-        return s1;
-    
-    else if (len2 > len1) 
-        return s2;
-     
-    else 
+    int len2 = num2.digits;
+    if (len1 > len2)
+        return POSITIVE;
+
+    if (len2 > len1)
+        return NEGATIVE;
+
+    for (int i = MAX_DIGITS - len1; i < MAX_DIGITS; i++) // start comparing from the most significant digits
     {
-        for (int i = MAX_DIGITS - len1; i < MAX_DIGITS; i++) //start comparing from the most significant digits
-        {
-            if (num1.integerArr[i] > num2.integerArr[i]) 
-                return s1;
-        
-            else if (num1.integerArr[i] < num2.integerArr[i]) 
-                return s2;
-            
-        }
+        if (num1.integerArr[i] > num2.integerArr[i])
+            return POSITIVE;
+
+        else if (num1.integerArr[i] < num2.integerArr[i])
+            return NEGATIVE;
     }
     return ZERO;
 }
 
-BigInt Subtraction(BigInt num1, BigInt num2, sign *s , sign s1 , sign s2) 
+void copyBigInt(BigInt *src, BigInt *dest)
+{
+    int i;
+    for (i = 0; i < MAX_DIGITS; i++)
+        dest->integerArr[i] = src->integerArr[i];
+
+    dest->digits = src->digits;
+    dest->s = src->s;
+}
+
+void SwapBigInt(BigInt *num1, BigInt *num2)
+{
+    BigInt temp;
+    copyBigInt(num1, &temp);
+    copyBigInt(num2, num1);
+    copyBigInt(&temp, num2);
+}
+
+BigInt Subtraction(BigInt num1, BigInt num2)
 {
     BigInt result;
     Initialize(&result);
-    int borrow = 0, diff, i, startPos = MAX_DIGITS; // Track the highest non-zero position
-    *s = SubtractionSign(num1, num2 , s1 ,s2); // Determine the sign of the result
-    int maxLen = findMaxLen(num1 , num2);
-    if (*s == ZERO) 
+    int borrow = 0, diff, i, startPos = MAX_DIGITS - 1; // Track the highest non-zero position
+    sign s = SubtractionSign(num1, num2);               // Determine the sign of the result
+    int maxLen = findMaxLen(num1, num2);
+    if (s == ZERO)
     {
         result.integerArr[MAX_DIGITS - 1] = '0';
         result.digits = 1; // Result is "0", so size is 1
-        return result;
     }
-    if (*s == s2) 
+    else
     {
-        // Swap num1 and num2
-        char temp[MAX_DIGITS];
-        strcpy(temp, num1.integerArr);
-        strcpy(num1.integerArr, num2.integerArr);
-        strcpy(num2.integerArr, temp); 
-        // Swap digits
-        int t = num1.digits;
-        num1.digits = num2.digits;
-        num2.digits = t;
-    }
-    // Perform subtraction
-    for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - maxLen; i--) 
-    {
-        diff = (num1.integerArr[i] - '0') - (num2.integerArr[i] - '0') - borrow;
-        if (diff < 0) 
+        if (s == NEGATIVE) // swap the numbers
         {
-            diff += 10;
-            borrow = 1;
-        } 
-        else 
-            borrow = 0;
-    
-        result.integerArr[i] = diff + '0';   
-        if (diff > 0 && i < startPos) // Update the highest non-zero position
+            SwapBigInt(&num1, &num2);
+        }
+        printf("num1: ");
+        printNumber(num1);
+        printf("num2: ");
+        printNumber(num2);
+        // Perform subtraction
+        for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - maxLen; i--)
         {
-            startPos = i;
+            diff = toInt(num1.integerArr[i]) - toInt(num2.integerArr[i]) - borrow;
+            if (diff < 0)
+            {
+                diff += 10;
+                borrow = 1;
+            }
+            else
+                borrow = 0;
+
+            result.integerArr[i] = toChar(diff);
+            if (diff > 0 && i < startPos) // Update the highest non-zero position
+                startPos = i;
+        }
+        result.digits = MAX_DIGITS - startPos; // Update number of significant digits
+        result.s = s;                          // Set the sign of the result
+        if(s==NEGATIVE)
+        {
+            SwapBigInt(&num1, &num2); // Swap back to restore original numbers
         }
     }
-        result.digits = MAX_DIGITS - startPos; // Update number of significant digits
     return result;
 }
 
-int takeInput(BigInt *num1 , BigInt *num2 , char *n1 , char *n2 , sign *s1 , sign *s2)
+BigInt Multiplication(BigInt num1, BigInt num2)
 {
-    int ret_val = 1;
-    printf("Enter the first number: ");
-    scanf("%s", n1);
-    printf("Enter the second number: ");
-    scanf("%s", n2);
-    if(setValue(num1, n1, s1)==0 || setValue(num2, n2, s2)==0)
+    BigInt result;
+    Initialize(&result);
+    if (num1.s == ZERO || num2.s == ZERO)
     {
-        ret_val = 0;
+        result.integerArr[MAX_DIGITS - 1] = '0';
+        result.digits = 1; // Result is "0", so size is 1'
+        result.s = ZERO;
+        return result;
     }
-    return ret_val;      
-}
+    if (num1.s == num2.s)
+        result.s = POSITIVE;
 
-void copyBigInt(BigInt *num1 , BigInt *num2)
-{
-    strcpy(num1 -> integerArr , num2 -> integerArr);
-    num1 -> digits = num2 -> digits;
-}
+    else
+        result.s = NEGATIVE;
 
-int main() 
-{
-    char n1[MAX_DIGITS], n2[MAX_DIGITS];
-    BigInt num1, num2, result;
-    int choice,valid;
-    sign s, s1, s2;   
-    valid = takeInput(&num1 , &num2 , n1 , n2 , &s1 , &s2);
-    do 
+    int len1 = num1.digits;
+    int len2 = num2.digits;
+    int i, j, product, carry, curr;
+    int startPos = MAX_DIGITS; // Track the highest non-zero position for `result.digits`
+    for (i = MAX_DIGITS - 1; i >= MAX_DIGITS - len2; i--)
     {
-        printf("1.Addition\n");
-        printf("2.Subtraction\n");
-        printf("3.Multiplication\n");
-        printf("4.Exit\n");
-        printf("Enter your choice: ");
-        scanf("%d", &choice);     
-        switch (choice) {
+        carry = 0;
+        for (j = MAX_DIGITS - 1; j >= MAX_DIGITS - len1; j--)
+        {
+            curr = i + j - (MAX_DIGITS - 1);
+            product = (num2.integerArr[i] - '0') * (num1.integerArr[j] - '0') + (result.integerArr[curr] - '0') + carry;
+            result.integerArr[curr] = (product % 10) + '0';
+            carry = product / 10;
+            // Update the highest non-zero position
+            if (product > 0 && curr < startPos)
+                startPos = curr;
+        }
+        if (carry > 0)
+        {
+            int pos = i + j - (MAX_DIGITS - 1);
+            if (pos >= 0)
+            {
+                result.integerArr[pos] += carry; // Update the highest non-zero position for carry
+                if (result.integerArr[pos] > '0' && pos < startPos)
+                    startPos = pos;
+            }
+            else
+            {
+                printf("Overflow occurred in Multiplication (Printing result with maximum possible digits)\n");
+                result.digits = MAX_DIGITS;
+                return result;
+            }
+        }
+    }
+    result.digits = MAX_DIGITS - startPos; // calculating the result size
+    return result;
+}
+
+int main()
+{
+    char n1[MAX_DIGITS + 1], n2[MAX_DIGITS + 1];
+    BigInt num1, num2,result;
+    boolean isNum;
+    int choice;
+    printf("Enter first number: ");
+    do
+    {    
+        scanf("%s", n1);
+        isNum = setValue(n1, &num1);
+    } while (!isNum);
+        
+    printf("Enter second number: ");
+    do
+    {
+        scanf("%s", n2);
+        isNum = setValue(n2, &num2);
+    } while (!isNum);
+
+    do{
+        printf("1. Addition\n");
+        printf("2. Subtraction\n");
+        printf("3. Multiplication\n"); 
+        printf("4. Exit\n");
+        printf("Choose an operation (1-3): ");  
+        scanf("%d", &choice); 
+        printf("\n");
+        switch(choice)
+        {
             case 1:
-                 
-                if(valid)
+                if(num1.s==num2.s) // If both numbers have the same sign or one is zero
                 {
-                    if(s1 == ZERO)
-                    {
-                        copyBigInt(&result , &num2);
-                        s = s2;
-                    }
-                    else if(s2 == ZERO)
-                    {
-                        copyBigInt(&result , &num1);
-                        s = s1;
-                    }
-                    else if (s1 == s2) 
-                    {
-                        result = Addition(num1, num2);  
-                        s = s1;  
-                    } 
-                    else 
-                    result = Subtraction(num1, num2, &s , s1 , s2);
-                
-                    printResult(s, result);
+                    result=Addition(num1,num2);
                 }
                 else
                 {
-                    printf("Enter valid numbers\n");
+                    if(num1.s==ZERO) // If num1 is zero
+                    {
+                        copyBigInt(&num2,&result); // Result is num2
+                    }
+                    else if(num2.s==ZERO) // If num2 is zero
+                    {
+                        copyBigInt(&num1,&result); // Result is num1
+                    }
+                    else
+                    if(num1.s==NEGATIVE)
+                    {
+                        result=Subtraction(num2,num1);
+                    }
+                    else//num2 is negative 
+                    {
+                        result=Subtraction(num1,num2);
+                    }
                 }
+                printf("Result of addition: ");
+                printNumber(result);
+                Initialize(&result); // Reset result for next operation
                 break;
-                
+            
             case 2:
-               
-                if(valid)
+                if(num1.s == num2.s) // If both numbers have the same sign
                 {
-                    if(s1 == ZERO)
+                    if(num1.s == POSITIVE) // If both are positive, perform subtraction
+                        result = Subtraction(num1, num2);
+                    else // If both are negative, perform subtraction and result will be negative
+                        result = Subtraction(num2, num1);
+                }
+                else
+                {
+                    if(num1.s == ZERO) // If num1 is zero
                     {
-                        copyBigInt(&result , &num2);
-                        s = (s2 == NEGATIVE) ? POSITIVE : NEGATIVE;
+                        copyBigInt(&num2, &result); // Result is num2
+                        result.s = (num2.s == NEGATIVE) ? POSITIVE : NEGATIVE; // Change sign of result
+
                     }
-                    else if(s2 == ZERO)
+                    else if(num2.s == ZERO) // If num2 is zero
                     {
-                        copyBigInt(&result , &num1);
-                        s = s1;
+                        copyBigInt(&num1, &result); // Result is num1
                     }
-                    else if(s1 == s2) 
+                    if(num1.s == NEGATIVE) // If num1 is negative, swap
                     {
-                        s2 = (s2 == NEGATIVE) ? POSITIVE : NEGATIVE;
-                        result = Subtraction(num1, num2, &s , s1 ,s2);
+                        num2.s=NEGATIVE; // Change sign of num2 to positive
+                        result = Addition(num2, num1);
+                        num2.s=POSITIVE; // Restore sign of num2
                     }
-                    else 
-                    {
+                    else // num2 is negative
+                    {     
+                        num2.s=POSITIVE; // Change sign of num2 to positive                  
                         result = Addition(num1, num2);
-                        s = s1;
+                        num2.s=NEGATIVE; // Restore sign of num2
                     }
-                    printResult(s, result);
                 }
-                else
-                {
-                    printf("Enter valid numbers\n");
-                }
+                printf("Result of subtraction: ");
+                printNumber(result);
+                Initialize(&result); // Reset result for next operation
                 break;
-                
+
             case 3:
-                
-                if(valid)
-                {
-                    result = Multiplication(num1, num2 , s1 , s2 , &s);
-                    printResult(s, result);
-                }
-                else
-                {
-                    printf("Enter valid numbers\n");
-                }
+                result = Multiplication(num1, num2);
+                printf("Result of multiplication: ");
+                printNumber(result);
+                Initialize(&result); // Reset result for next operation
                 break;
-                
+
             case 4:
                 printf("Exiting the program.\n");
                 break;
-                
-            default:
-                printf("Invalid choice! Please try again.\n");
-        }
-    } while (choice != 4);   
+        } 
+    } while (choice != 4);
     return 0;
 }
